@@ -29,8 +29,6 @@ public sealed class Plugin : IDalamudPlugin
 
     private const int MaxTradeAmount = 1_000_000; // 1 million gil cap per trade
 
-    // private ChatFunctions chatFunctions;
-
     private int remainingGil = 0;
     private bool isTradeInProgress = false;
     public Plugin()
@@ -43,7 +41,6 @@ public sealed class Plugin : IDalamudPlugin
             HelpMessage = "Starts automated gil trading: /giltrade <amount>"
         });
 
-        // chatFunctions = new ChatFunctions(SigScanner);
         Log.Information($"===Gillionaire Loaded===");
     }
 
