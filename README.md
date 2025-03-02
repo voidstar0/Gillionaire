@@ -4,6 +4,8 @@ Automated Gil trading because I am too lazy
 
 ## How To Use
 
+![Example of gil sending](./assets/example.mp4)
+
 ### Activating in-game
 
 1. Launch the game and use `/xlsettings` in chat or `xlsettings` in the Dalamud Console to open up the Dalamud settings.
