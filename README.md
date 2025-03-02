@@ -4,7 +4,8 @@ Automated Gil trading because I am too lazy
 
 ## How To Use
 
-![Example of gil sending](assets/example.mp4)
+
+https://github.com/user-attachments/assets/b64ee237-8180-40b0-933a-e2002f051444
 
 ### Activating in-game
 
