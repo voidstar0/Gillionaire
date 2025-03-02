@@ -1,0 +1,11 @@
+{
+  "Author": "voidstar0",
+  "Name": "Gillionaire",
+  "Punchline": "Trading Gil quickly because time is money.",
+  "Description": "Automate the Gil sending process to send amounts over the maximum using /giltrade <amount>.",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "gil",
+    "trade"
+  ]
+}
