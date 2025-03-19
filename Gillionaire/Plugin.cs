@@ -182,21 +182,21 @@ public sealed class Plugin : IDalamudPlugin
         var currentGil = int.Parse(moneyWindow->AtkValues[1].GetValueAsString().Replace(",", ""));
 
         // Get gil amount as argument
-
-        if (int.TryParse(args, out var gilAmount) && gilAmount > currentGil)
-        {
-            Log.Information($"You do not have enough gil to start this trade.");
-        }
-        else if (gilAmount > 0)
-        {
-            remainingGil = gilAmount;
-            isTradeInProgress = false;
-            Log.Information($"Starting trade sequence for {gilAmount} gil");
-            StartNextTrade();
-        }
-        else
+        var validAmount = int.TryParse(args, out var gilAmount);
+        var hasEnoughGil = gilAmount <= currentGil;
+        if (!validAmount || gilAmount == 0)
         {
             Log.Error("Invalid gil amount. Please specify a positive number.");
+            return;
         }
+        if (!hasEnoughGil)
+        {
+            Log.Information($"You do not have enough gil to start this trade.");
+            return;
+        }
+        remainingGil = gilAmount;
+        isTradeInProgress = false;
+        Log.Information($"Starting trade sequence for {gilAmount} gil");
+        StartNextTrade();
     }
 }
