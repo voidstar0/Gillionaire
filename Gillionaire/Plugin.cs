@@ -14,6 +14,7 @@ using ECommons.UIHelpers.AddonMasterImplementations;
 using ECommons.Automation;
 using System.Diagnostics.Metrics;
 using System.Text.RegularExpressions;
+using FFXIVClientStructs.FFXIV.Client.Game;
 
 namespace GIllionaire;
 
@@ -178,9 +179,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private unsafe void OnCommand(string command, string args)
     {
-        var moneyWindow = (AtkUnitBase*)GameGui.GetAddonByName("_Money");
-        var currentGil = int.Parse(moneyWindow->AtkValues[1].GetValueAsString().Replace(",", ""));
-
+        var currentGil = InventoryManager.Instance()->GetGil();
         // Get gil amount as argument
         var validAmount = int.TryParse(args, out var gilAmount);
         var hasEnoughGil = gilAmount <= currentGil;
