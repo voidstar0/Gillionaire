@@ -15,6 +15,7 @@ using ECommons.Automation;
 using System.Diagnostics.Metrics;
 using System.Text.RegularExpressions;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using Lumina.Excel.Sheets;
 
 namespace GIllionaire;
 
@@ -166,6 +167,9 @@ public sealed class Plugin : IDalamudPlugin
             var finalCloseReturn2 = new AtkValue { Bool = false };
             var finalCloseValues2 = new AtkValue { Type = ValueType.Int, Int = 0 };
             tradeAgent->ReceiveEvent(&finalCloseReturn2, &finalCloseValues2, 2, 0);
+
+            var inputNumeric = GameGui.GetAddonByName("InputNumeric");
+            new AddonMaster.InputNumeric(inputNumeric).Cancel();
         };
     }
 
