@@ -12,6 +12,8 @@ using FFXIVClientStructs.FFXIV.Client.UI;
 using ECommons;
 using ECommons.UIHelpers.AddonMasterImplementations;
 using ECommons.Automation;
+using System.Diagnostics.Metrics;
+using System.Text.RegularExpressions;
 
 namespace GIllionaire;
 
@@ -67,7 +69,8 @@ public sealed class Plugin : IDalamudPlugin
                 var timer = new System.Timers.Timer(500);
                 timer.AutoReset = false;
                 timer.Start();
-                timer.Elapsed += (sender, e) => {
+                timer.Elapsed += (sender, e) =>
+                {
                     StartNextTrade();
                 };
             }
@@ -75,7 +78,7 @@ public sealed class Plugin : IDalamudPlugin
             {
                 Log.Information("Gil trading completed successfully.");
             }
-        } 
+        }
         else if (message.TextValue.Contains("Trade canceled."))
         {
             isTradeInProgress = false;
@@ -92,15 +95,16 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
         if (isTradeInProgress || remainingGil <= 0) return;
-        
+
         isTradeInProgress = true;
         // Trade the player you're targeting
         Chat.Instance.ExecuteCommand("/trade");
-        
+
         var timer = new System.Timers.Timer(800); // Wait for trade window to open
         timer.AutoReset = false;
         timer.Start();
-        timer.Elapsed += (sender, e) => {
+        timer.Elapsed += (sender, e) =>
+        {
             int amountToSend = CalculateTradeAmount(remainingGil, MaxTradeAmount);
             remainingGil -= amountToSend;
             Log.Information($"Trading {amountToSend} gil. Remaining: {remainingGil}");
@@ -114,14 +118,14 @@ public sealed class Plugin : IDalamudPlugin
         // If we can send it all, do so
         if (totalRemaining <= maxPerTrade)
             return totalRemaining;
-            
+
         // Calculate the optimal amount to send
         int amountToSend = totalRemaining % maxPerTrade;
-        
+
         // If the remainder is 0, we need to send the max amount
         if (amountToSend == 0)
             return maxPerTrade;
-            
+
         return amountToSend;
     }
 
@@ -148,11 +152,12 @@ public sealed class Plugin : IDalamudPlugin
         tradeAgent->ReceiveEvent(&atkReturn, &values, 1, 1);
 
         timer.Start();
-        timer.Elapsed += (sender, e) => {
+        timer.Elapsed += (sender, e) =>
+        {
             var clickCloseatkReturn = new AtkValue { Bool = true };
             var clickClosevalues = new AtkValue { Type = ValueType.Int, Int = -1 };
             tradeAgent->ReceiveEvent(&clickCloseatkReturn, &clickClosevalues, 2, 1);
-            
+
             var finalCloseReturn = new AtkValue { Bool = false };
             var finalCloseValues = new AtkValue { Type = ValueType.Int, Int = 4 };
             tradeAgent->ReceiveEvent(&finalCloseReturn, &finalCloseValues, 2, 0);
@@ -173,17 +178,25 @@ public sealed class Plugin : IDalamudPlugin
 
     private unsafe void OnCommand(string command, string args)
     {
+        var moneyWindow = (AtkUnitBase*)GameGui.GetAddonByName("_Money");
+        var currentGil = int.Parse(moneyWindow->AtkValues[1].GetValueAsString().Replace(",", ""));
+
         // Get gil amount as argument
-        if (int.TryParse(args, out var gilAmount) && gilAmount > 0)
-        {
-            remainingGil = gilAmount;
-            isTradeInProgress = false;
-            Log.Information($"Starting trade sequence for {gilAmount} gil");
-            StartNextTrade();
-        }
-        else
+        var validAmount = int.TryParse(args, out var gilAmount);
+        var hasEnoughGil = gilAmount <= currentGil;
+        if (!validAmount || gilAmount == 0)
         {
             Log.Error("Invalid gil amount. Please specify a positive number.");
+            return;
         }
+        if (!hasEnoughGil)
+        {
+            Log.Information($"You do not have enough gil to start this trade.");
+            return;
+        }
+        remainingGil = gilAmount;
+        isTradeInProgress = false;
+        Log.Information($"Starting trade sequence for {gilAmount} gil");
+        StartNextTrade();
     }
 }
