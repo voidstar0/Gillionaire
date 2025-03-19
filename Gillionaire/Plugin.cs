@@ -179,7 +179,7 @@ public sealed class Plugin : IDalamudPlugin
     private unsafe void OnCommand(string command, string args)
     {
         var moneyWindow = (AtkUnitBase*)GameGui.GetAddonByName("_Money");
-        var currentGil = int.Parse(Regex.Replace(moneyWindow->AtkValues[1].GetValueAsString(), @"(\d+),(\d+),(\d+)", "$1$2$3"));
+        var currentGil = int.Parse(moneyWindow->AtkValues[1].GetValueAsString().Replace(",", ""));
 
         // Get gil amount as argument
 
