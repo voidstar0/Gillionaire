@@ -16,8 +16,11 @@ using System.Diagnostics.Metrics;
 using System.Text.RegularExpressions;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using Lumina.Excel.Sheets;
+using System;
+
 
 namespace GIllionaire;
+
 
 public sealed class Plugin : IDalamudPlugin
 {
@@ -131,6 +134,81 @@ public sealed class Plugin : IDalamudPlugin
         return amountToSend;
     }
 
+    internal static unsafe class NodeUtils
+    {
+        public static AtkComponentNode* GetAsAtkComponentNode(AtkResNode* me) =>
+            (ushort)me->Type < 1000
+                ? throw new ArgumentException("Node is not a component node", nameof(me))
+                : (AtkComponentNode*)me;
+
+        public static T* GetComponent<T>(AtkComponentNode* node) where T : unmanaged =>
+            GetNodeComponentType(node) != GetComponentType(typeof(T))
+                ? throw new ArgumentException($"{GetNodeComponentType(node)} node is not a {typeof(T).Name}", nameof(node))
+                : (T*)node->Component;
+
+        public static T* GetAsAtkComponent<T>(AtkResNode* me) where T : unmanaged =>
+            GetComponent<T>(GetAsAtkComponentNode(me));
+
+        private static ComponentType GetComponentType(Type t)
+        {
+            if (t == typeof(AtkComponentBase)) return ComponentType.Base;
+            if (t == typeof(AtkComponentButton)) return ComponentType.Button;
+            if (t == typeof(AtkComponentWindow)) return ComponentType.Window;
+            if (t == typeof(AtkComponentCheckBox)) return ComponentType.CheckBox;
+            if (t == typeof(AtkComponentRadioButton)) return ComponentType.RadioButton;
+            if (t == typeof(AtkComponentGaugeBar)) return ComponentType.GaugeBar;
+            if (t == typeof(AtkComponentSlider)) return ComponentType.Slider;
+            if (t == typeof(AtkComponentTextInput)) return ComponentType.TextInput;
+            if (t == typeof(AtkComponentNumericInput)) return ComponentType.NumericInput;
+            if (t == typeof(AtkComponentList)) return ComponentType.List;
+            if (t == typeof(AtkComponentDropDownList)) return ComponentType.DropDownList;
+            // if (t == typeof(AtkComponentTab)) return ComponentType.Tab;
+            if (t == typeof(AtkComponentTreeList)) return ComponentType.TreeList;
+            if (t == typeof(AtkComponentScrollBar)) return ComponentType.ScrollBar;
+            if (t == typeof(AtkComponentListItemRenderer)) return ComponentType.ListItemRenderer;
+            if (t == typeof(AtkComponentIcon)) return ComponentType.Icon;
+            if (t == typeof(AtkComponentIconText)) return ComponentType.IconText;
+            if (t == typeof(AtkComponentDragDrop)) return ComponentType.DragDrop;
+            if (t == typeof(AtkComponentGuildLeveCard)) return ComponentType.GuildLeveCard;
+            if (t == typeof(AtkComponentTextNineGrid)) return ComponentType.TextNineGrid;
+            if (t == typeof(AtkComponentJournalCanvas)) return ComponentType.JournalCanvas;
+            // if (t == typeof(AtkComponentMultipurpose)) return ComponentType.Multipurpose;
+            // if (t == typeof(AtkComponentMap)) return ComponentType.Map;
+            // if (t == typeof(AtkComponentPreview)) return ComponentType.Preview;
+            if (t == typeof(AtkComponentHoldButton)) return ComponentType.HoldButton;
+            if (t == typeof(AtkComponentPortrait)) return ComponentType.Portrait;
+            throw new ArgumentOutOfRangeException(nameof(t), t, "Unknown component type");
+        }
+
+        private static ComponentType? GetNodeComponentType(AtkComponentNode* node)
+        {
+            var info = ((AtkUldComponentInfo*)node->Component->UldManager.Objects);
+            return info == null ? null : info->ComponentType;
+        }
+
+        public static AtkResNode* GetNodeById(AtkComponentBase* node, uint id) =>
+            node->UldManager.SearchNodeById(id);
+
+        public static AtkResNode* GetNodeByIdStrict(AtkComponentBase* node, uint id)
+        {
+            for (var i = 0; i < node->UldManager.NodeListCount; i++)
+            {
+                var n = node->UldManager.NodeList[i];
+                if (n->NodeId == id)
+                    return n;
+            }
+            return null;
+        }
+
+        public static void SetVisibility(AtkResNode* node, bool visible)
+        {
+            if (visible)
+                node->NodeFlags |= NodeFlags.Visible;
+            else
+                node->NodeFlags &= ~NodeFlags.Visible;
+        }
+    }
+
     public unsafe void TradeAmount(int amount)
     {
         // Get the Trade window
@@ -146,30 +224,52 @@ public sealed class Plugin : IDalamudPlugin
         timer.AutoReset = false;
         // This is a hacky way of specifying the Gil to send and pressing the Trade button.
         var clickatkReturn = new AtkValue { Bool = false };
-        var clickvalues = new AtkValue { Type = ValueType.Int, Int = 2 };
+        var clickvalues = new AtkValue { Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int, Int = 2 };
         tradeAgent->ReceiveEvent(&clickatkReturn, &clickvalues, 2, 0);
 
         var atkReturn = new AtkValue { Bool = true };
-        var values = new AtkValue { Type = ValueType.Int, Int = amount };
+        var values = new AtkValue { Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int, Int = amount };
         tradeAgent->ReceiveEvent(&atkReturn, &values, 1, 1);
 
         timer.Start();
         timer.Elapsed += (sender, e) =>
         {
             var clickCloseatkReturn = new AtkValue { Bool = true };
-            var clickClosevalues = new AtkValue { Type = ValueType.Int, Int = -1 };
+            var clickClosevalues = new AtkValue { Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int, Int = -1 };
             tradeAgent->ReceiveEvent(&clickCloseatkReturn, &clickClosevalues, 2, 1);
 
             var finalCloseReturn = new AtkValue { Bool = false };
-            var finalCloseValues = new AtkValue { Type = ValueType.Int, Int = 4 };
+            var finalCloseValues = new AtkValue { Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int, Int = 4 };
             tradeAgent->ReceiveEvent(&finalCloseReturn, &finalCloseValues, 2, 0);
-
-            var finalCloseReturn2 = new AtkValue { Bool = false };
-            var finalCloseValues2 = new AtkValue { Type = ValueType.Int, Int = 0 };
-            tradeAgent->ReceiveEvent(&finalCloseReturn2, &finalCloseValues2, 2, 0);
 
             var inputNumeric = GameGui.GetAddonByName("InputNumeric");
             new AddonMaster.InputNumeric(inputNumeric).Cancel();
+
+            var checkTimer = new System.Timers.Timer(300);
+
+            checkTimer.Start();
+            checkTimer.Elapsed += (sender, e) =>
+            {
+                var tradeWindow = (AtkUnitBase*)GameGui.GetAddonByName("Trade");
+                if (tradeWindow == null)
+                {
+                    checkTimer.Stop();
+                    return;
+                }
+                var traderComponent = NodeUtils.GetAsAtkComponent<AtkComponentBase>(tradeWindow->GetNodeById(4));
+                var receiverComponent = NodeUtils.GetAsAtkComponent<AtkComponentBase>(tradeWindow->GetNodeById(5));
+                var receiverOk = receiverComponent->GetTextNodeById(2);
+                var traderOk = traderComponent->GetTextNodeById(2);
+
+                if (receiverOk->Alpha_2 > 200)
+                {
+                    var finalCloseReturn2 = new AtkValue { Bool = false };
+                    var finalCloseValues2 = new AtkValue { Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int, Int = 0 };
+                    tradeAgent->ReceiveEvent(&finalCloseReturn2, &finalCloseValues2, 2, 0);
+
+                    checkTimer.Stop();
+                }
+            };
         };
     }
 
